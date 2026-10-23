@@ -1,0 +1,11 @@
+[Unit]
+Description=Setup DDNS Network Namespace
+Before=dns_updater.service
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup-ddns-netns.sh
+
+[Install]
+WantedBy=multi-user.target

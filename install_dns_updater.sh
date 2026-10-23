@@ -50,8 +50,8 @@ echo "🔧 Writing systemd service and timer ($INTERVAL_SEC sec interval)..."
 cat > "$SERVICE_PATH" << EOF
 [Unit]
 Description=Home lab: $NAME
-Wants=network-online.target
-After=network-online.target
+Wants=network-online.target ddns-netns-setup.service
+After=network-online.target ddns-netns-setup.service
 
 [Service]
 Type=oneshot

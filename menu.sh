@@ -19,7 +19,7 @@ show_menu() {
     echo "====================================="
     echo "1) Install Automatic DNS Update"
     echo "2) Update installed scripts (keeps your settings)"
-    echo "3) Uninstall Automatic Cloudflare/NextDNS Update"
+    echo "3) Uninstall Automatic Cloudflare Update"
     echo "4) Exit"
     echo "====================================="
 }
@@ -33,7 +33,8 @@ read_setting() {
 load_settings() {
     DDNS_INTERVAL_SEC=$(read_setting DDNS_INTERVAL_SEC)
     DDNS_VIP=$(read_setting DDNS_VIP)
-    DDNS_RECORD_NAME=$(read_setting DDNS_RECORD_NAME)
+    DDNS_NETNS_RECORD=$(read_setting DDNS_NETNS_RECORD)
+    DDNS_DIRECT_RECORD=$(read_setting DDNS_DIRECT_RECORD)
     DDNS_ZONE_NAME=$(read_setting DDNS_ZONE_NAME)
     CF_API_TOKEN=$(read_setting CF_API_TOKEN)
 }
@@ -44,7 +45,8 @@ write_settings() {
 # Settings for dns_updater. Written by menu.sh, read by systemd. Kept across updates.
 DDNS_INTERVAL_SEC="$DDNS_INTERVAL_SEC"
 DDNS_VIP="$DDNS_VIP"
-DDNS_RECORD_NAME="$DDNS_RECORD_NAME"
+DDNS_NETNS_RECORD="$DDNS_NETNS_RECORD"
+DDNS_DIRECT_RECORD="$DDNS_DIRECT_RECORD"
 DDNS_ZONE_NAME="$DDNS_ZONE_NAME"
 CF_API_TOKEN="$CF_API_TOKEN"
 EOF
@@ -84,11 +86,12 @@ configure() {
     DDNS_INTERVAL_SEC=$(ask "⏱️  Check interval in seconds" "${DDNS_INTERVAL_SEC:-10}")
     DDNS_VIP=$(ask "🖧  VIP shared by the DNS servers (e.g. 192.168.1.3)" "$DDNS_VIP")
     DDNS_ZONE_NAME=$(ask "🟠 Cloudflare zone name (e.g. example.com)" "$DDNS_ZONE_NAME")
-    DDNS_RECORD_NAME=$(ask "🌐 Record to keep updated (e.g. www.example.com)" "$DDNS_RECORD_NAME")
+    DDNS_NETNS_RECORD=$(ask "🔒 VPN record, updated through the ddns_ns namespace (e.g. vpn.example.com)" "$DDNS_NETNS_RECORD")
+    DDNS_DIRECT_RECORD=$(ask "🌐 Normal record, updated over the default route (e.g. www.example.com)" "$DDNS_DIRECT_RECORD")
     CF_API_TOKEN=$(ask "🟠 Cloudflare API token (DNS:Edit)" "$CF_API_TOKEN" secret)
 
-    if [ -z "$DDNS_VIP" ] || [ -z "$DDNS_ZONE_NAME" ] || [ -z "$DDNS_RECORD_NAME" ] || [ -z "$CF_API_TOKEN" ]; then
-        echo "❌ VIP, zone name, record name and API token are required. Nothing saved."
+    if [ -z "$DDNS_VIP" ] || [ -z "$DDNS_ZONE_NAME" ] || [ -z "$DDNS_NETNS_RECORD" ] || [ -z "$DDNS_DIRECT_RECORD" ] || [ -z "$CF_API_TOKEN" ]; then
+        echo "❌ VIP, zone name, both record names and API token are required. Nothing saved."
         return 1
     fi
     case $DDNS_INTERVAL_SEC in
