@@ -7,6 +7,7 @@
 # namespace, and "ip netns exec" needs root.
 
 NETNS="ddns_ns"
+ENV_FILE="/etc/home_lab/dns_updater.env"
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
@@ -17,6 +18,11 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Load the saved settings, so a manual run behaves like the timer
+if [ -f "$ENV_FILE" ]; then
+    . "$ENV_FILE"
+fi
+
 for var in DDNS_VIP DDNS_RECORD_NAME DDNS_ZONE_NAME CF_API_TOKEN; do
     eval "value=\${$var:-}"
     if [ -z "$value" ]; then
@@ -24,11 +30,6 @@ for var in DDNS_VIP DDNS_RECORD_NAME DDNS_ZONE_NAME CF_API_TOKEN; do
         exit 1
     fi
 done
-
-if ! ip netns list | grep -qw "$NETNS"; then
-    log "ERROR: network namespace $NETNS does not exist."
-    exit 1
-fi
 
 # Call the Cloudflare API from inside the namespace
 cf_api() {
@@ -46,6 +47,11 @@ if ! ip addr show | grep -q "inet $DDNS_VIP/"; then
 fi
 
 log "Node owns VIP $DDNS_VIP. Proceeding with update check."
+
+if ! ip netns list | grep -qw "$NETNS"; then
+    log "ERROR: network namespace $NETNS does not exist."
+    exit 1
+fi
 
 # 2. Get current external IP
 log "Fetching current external IP..."
