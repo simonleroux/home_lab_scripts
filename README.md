@@ -26,7 +26,7 @@ Menu:
 - **Update** re-downloads the latest scripts and applies them with the saved settings. You're not asked anything.
 - **Change settings** asks again, with the current values as defaults. Press Enter to keep a value, or type `-` to clear the NextDNS URL.
 
-Settings to enter: check interval (minutes), VIP shared by the DNS servers, Cloudflare zone name, record to update, and Cloudflare API token. The zone and record IDs are looked up automatically.
+Settings to enter: check interval (seconds, default 10), VIP shared by the DNS servers, Cloudflare zone name, record to update, and Cloudflare API token. The zone and record IDs are looked up automatically.
 
 Install on **both** DNS servers. Each one runs the timer, but only the node that holds the VIP updates Cloudflare, so the two never fight over the record.
 
@@ -54,8 +54,10 @@ The script is owned by root and the settings file is mode 600, so the token is n
 ### Check or remove
 
 ```bash
-systemctl list-timers dns_updater.timer
-journalctl -u dns_updater.service -n 20
+sudo sh /home/siler/Script/ddns-status.sh      # service, timer, next run, last run's log
+sudo sh /home/siler/Script/ddns-status.sh -f   # follow the log live (Ctrl+C to stop)
 ```
+
+The status script needs `sudo` to see every log message. Without it, the journal hides messages from other users.
 
 Uninstall from the menu (option 5). It removes the timer and script, and asks before deleting the settings.

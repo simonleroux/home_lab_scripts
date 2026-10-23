@@ -31,7 +31,7 @@ read_setting() {
 }
 
 load_settings() {
-    DDNS_INTERVAL_MIN=$(read_setting DDNS_INTERVAL_MIN)
+    DDNS_INTERVAL_SEC=$(read_setting DDNS_INTERVAL_SEC)
     DDNS_VIP=$(read_setting DDNS_VIP)
     DDNS_RECORD_NAME=$(read_setting DDNS_RECORD_NAME)
     DDNS_ZONE_NAME=$(read_setting DDNS_ZONE_NAME)
@@ -42,7 +42,7 @@ write_settings() {
     mkdir -p "$CONF_DIR"
     cat > "$ENV_FILE" << EOF
 # Settings for dns_updater. Written by menu.sh, read by systemd. Kept across updates.
-DDNS_INTERVAL_MIN="$DDNS_INTERVAL_MIN"
+DDNS_INTERVAL_SEC="$DDNS_INTERVAL_SEC"
 DDNS_VIP="$DDNS_VIP"
 DDNS_RECORD_NAME="$DDNS_RECORD_NAME"
 DDNS_ZONE_NAME="$DDNS_ZONE_NAME"
@@ -81,7 +81,7 @@ configure() {
     echo ""
     echo "📝 Settings (press Enter to keep the value in brackets)"
     echo ""
-    DDNS_INTERVAL_MIN=$(ask "⏱️  Check interval in minutes" "${DDNS_INTERVAL_MIN:-5}")
+    DDNS_INTERVAL_SEC=$(ask "⏱️  Check interval in seconds" "${DDNS_INTERVAL_SEC:-10}")
     DDNS_VIP=$(ask "🖧  VIP shared by the DNS servers (e.g. 192.168.1.3)" "$DDNS_VIP")
     DDNS_ZONE_NAME=$(ask "🟠 Cloudflare zone name (e.g. example.com)" "$DDNS_ZONE_NAME")
     DDNS_RECORD_NAME=$(ask "🌐 Record to keep updated (e.g. www.example.com)" "$DDNS_RECORD_NAME")
@@ -91,12 +91,18 @@ configure() {
         echo "❌ VIP, zone name, record name and API token are required. Nothing saved."
         return 1
     fi
+    case $DDNS_INTERVAL_SEC in
+        ''|*[!0-9]*|0)
+            echo "❌ Interval must be a whole number of seconds, above 0. Nothing saved."
+            return 1
+            ;;
+    esac
     write_settings
     echo "💾 Settings saved to $ENV_FILE"
 }
 
 fetch_files() {
-    for f in install_dns_updater.sh dns_updater.sh uninstall_dns_updater.sh; do
+    for f in install_dns_updater.sh dns_updater.sh ddns-status.sh uninstall_dns_updater.sh; do
         curl -fsSL --max-time 60 "$REPO_URL/$f" -o "$TMP_DIR/$f" || { echo "❌ Could not download $f"; return 1; }
     done
 }

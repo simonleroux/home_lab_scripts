@@ -19,7 +19,7 @@ systemctl stop "$NAME.service" 2>/dev/null
 echo "🗑️  Removing systemd units and scripts..."
 rm -f "/etc/systemd/system/$NAME.service" "/etc/systemd/system/$NAME.timer"
 # Only remove the script itself; the folder may hold other scripts
-rm -f "$SCRIPT_DIR/$SCRIPT_FILE"
+rm -f "$SCRIPT_DIR/$SCRIPT_FILE" "$SCRIPT_DIR/ddns-status.sh"
 
 systemctl daemon-reload
 systemctl reset-failed 2>/dev/null

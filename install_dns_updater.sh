@@ -38,14 +38,15 @@ if ! ip netns list | grep -qw ddns_ns; then
     echo "⚠️  Network namespace ddns_ns does not exist yet. The updater will fail until it does."
 fi
 
-INTERVAL_MIN=$(sed -n 's/^DDNS_INTERVAL_MIN="\(.*\)"$/\1/p' "$ENV_FILE" | head -n1)
-INTERVAL_MIN="${INTERVAL_MIN:-5}"
+INTERVAL_SEC=$(sed -n 's/^DDNS_INTERVAL_SEC="\(.*\)"$/\1/p' "$ENV_FILE" | head -n1)
+INTERVAL_SEC="${INTERVAL_SEC:-10}"
 
 echo "🔧 Installing $SCRIPT_FILE to $SCRIPT_DIR..."
 mkdir -p "$SCRIPT_DIR"
 install -m 755 -o root -g root "$SRC_DIR/$NAME.sh" "$SCRIPT_DIR/$SCRIPT_FILE"
+install -m 755 -o root -g root "$SRC_DIR/ddns-status.sh" "$SCRIPT_DIR/ddns-status.sh"
 
-echo "🔧 Writing systemd service and timer ($INTERVAL_MIN min interval)..."
+echo "🔧 Writing systemd service and timer ($INTERVAL_SEC sec interval)..."
 cat > "$SERVICE_PATH" << EOF
 [Unit]
 Description=Home lab: $NAME
@@ -62,11 +63,13 @@ EOF
 
 cat > "$TIMER_PATH" << EOF
 [Unit]
-Description=Run $NAME every $INTERVAL_MIN minutes
+Description=Run $NAME every $INTERVAL_SEC seconds
 
 [Timer]
 OnBootSec=30
-OnUnitActiveSec=${INTERVAL_MIN}min
+OnUnitActiveSec=${INTERVAL_SEC}s
+# Default AccuracySec is 1 minute, which would stretch short intervals
+AccuracySec=1s
 Unit=$NAME.service
 
 [Install]
@@ -78,4 +81,5 @@ systemctl daemon-reload
 systemctl enable "$NAME.timer"
 systemctl restart "$NAME.timer"
 
-echo "✅ $NAME installed on $(hostname), running every $INTERVAL_MIN min."
+echo "✅ $NAME installed on $(hostname), running every $INTERVAL_SEC sec."
+echo "📊 Check status with: sudo sh $SCRIPT_DIR/ddns-status.sh"
