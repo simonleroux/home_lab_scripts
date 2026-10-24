@@ -2,11 +2,23 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.3 - 2026-10-24
+
+### Changed
+- `pfsense_dyndns_guard.sh` (VERSION 1.1.3): the DNS check on the firewall queries `1.1.1.1`. This reverts the `192.168.1.3` change from 1.1.2, which applied only to checks run from a PC.
+- `menu.sh` (VERSION 1.1.3): version bumped with this release. No menu behaviour change.
+
+## 1.1.2 - 2026-10-24
+
+### Changed
+- `pfsense_dyndns_guard.sh` (VERSION 1.1.2): the DNS check queried `192.168.1.3`. Reverted in 1.1.3.
+- `menu.sh` (VERSION 1.1.2): version bumped with this release. No menu behaviour change.
+
 ## 1.1.1 - 2026-10-24
 
 ### Changed
 - `menu.sh` (VERSION 1.1.1): version bumped with this release. No menu behaviour change.
-- `pfsense_dyndns_guard.sh` (VERSION 1.1.1): on the MASTER, checks every 5 seconds that public DNS (`nslookup` against 1.1.1.1) shows this firewall's WAN IP. If it doesn't, it forces a DynDNS sync and logs what DNS returned. Forced syncs are limited to one per host every 300 seconds. The enable-and-sync path uses the same limit.
+- `pfsense_dyndns_guard.sh` (VERSION 1.1.1): on the MASTER, checks every 5 seconds that DNS shows this firewall's WAN IP. If it doesn't, it forces a DynDNS sync and logs what DNS returned. Forced syncs are limited to one per host every 300 seconds. The enable-and-sync path uses the same limit.
 
 ## 1.1.0 - 2026-10-24
 
