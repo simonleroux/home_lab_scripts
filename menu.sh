@@ -3,7 +3,7 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
-VERSION="1.1.7"
+VERSION="1.1.8"
 
 PHP="/usr/local/bin/php"
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
@@ -99,18 +99,39 @@ installed_version() {
     fi
 }
 
-# VERSION as published on GitHub for one of the repo's files
+# VERSION as published on GitHub for one of the repo's files. The timestamp
+# in the URL stops GitHub's cache from returning an old copy
 server_version() {
-    v=$(fetch -qo - "$REPO_URL/$1" 2>/dev/null | sed -n 's/^VERSION="\(.*\)"$/\1/p' | head -n1)
+    v=$(fetch -qo - "$REPO_URL/$1?t=$(date +%s)" 2>/dev/null | sed -n 's/^VERSION="\(.*\)"$/\1/p' | head -n1)
     echo "${v:-unavailable}"
 }
 
+# Says whether an installed version matches the server. $1 installed, $2 server
+version_status() {
+    case "$1" in
+        "not installed") echo "not installed" ;;
+        "$2") echo "up to date" ;;
+        *)
+            if [ "$2" = "unavailable" ]; then
+                echo "could not reach server"
+            else
+                echo "UPDATE AVAILABLE, server $2 (use option 3)"
+            fi
+            ;;
+    esac
+}
+
 show_menu() {
+    menu_server=$(server_version menu.sh)
+    wg_installed=$(installed_version "$WG_DEST")
+    dyn_installed=$(installed_version "$DYN_DEST")
+    wg_server=$(server_version "$WG_FILE")
+    dyn_server=$(server_version "$DYN_FILE")
     echo "====================================="
     echo "       STETNET pfSense Scripts       "
-    echo "       Menu version: $VERSION        "
-    echo "       WireGuard guard: $(installed_version "$WG_DEST")"
-    echo "       DynDNS guard:    $(installed_version "$DYN_DEST")"
+    echo "       Menu version: $VERSION ($(version_status "$VERSION" "$menu_server"))"
+    echo "       WireGuard guard: $wg_installed ($(version_status "$wg_installed" "$wg_server"))"
+    echo "       DynDNS guard:    $dyn_installed ($(version_status "$dyn_installed" "$dyn_server"))"
     echo "====================================="
     echo "1) Install WireGuardRoam guard"
     echo "2) Install DynDNS guard"

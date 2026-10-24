@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.8 - 2026-10-24
+
+### Changed
+- `menu.sh` (VERSION 1.1.8): the header shows whether the menu and each guard are up to date, compared with GitHub. It says "UPDATE AVAILABLE" with the server version when they differ. Server version checks now use a timestamp in the URL, so GitHub's cache doesn't hide new releases.
+- `pfsense_dyndns_guard.sh` and `pfsense_wg_roam_guard.sh`: unchanged, still at their current versions.
+
 ## 1.1.7 - 2026-10-24
 
 ### Changed
