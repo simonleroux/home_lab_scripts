@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.6 - 2026-10-24
+
+### Changed
+- `pfsense_dyndns_guard.sh` (VERSION 1.1.6): a mismatch now calls `services_dyndns_configure_client` for the host that's out of date, with `force` set. This is the call the GUI's "Save & Force Update" makes. 1.1.5's `services_dnsupdate_process` call ran without error but didn't update Cloudflare for `vpn`. The forced update now covers only the host that mismatched, not every WAN entry.
+- `menu.sh` (VERSION 1.1.6): version bumped with this release. No menu behaviour change.
+
 ## 1.1.5 - 2026-10-24
 
 ### Changed

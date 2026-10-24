@@ -14,7 +14,7 @@
 # Start at boot with Shellcmd: /bin/sh /root/dyndns_guard.sh
 # Install to /root/dyndns_guard.sh (chmod 700). See README.md.
 
-VERSION="1.1.5"
+VERSION="1.1.6"
 
 PHP="/usr/local/bin/php"
 DOMAIN="simonleroux.ca"
@@ -92,10 +92,10 @@ dns_lookup() {
     nslookup "$1.$DOMAIN" "$DNS_RESOLVER" 2>/dev/null | awk '/^Address/ && !/#/ {print $2; exit}'
 }
 
-# Forces a DynDNS update on the WAN, at most once per RESYNC_MIN_INTERVAL for host $1.
-# Calls the forced update directly. rc.dyndns.update skips entries whose
-# cached IP already matches the WAN IP, even when Cloudflare has another value.
-# $2 is the reason, for the log
+# Forces a DynDNS update for host $1, at most once per RESYNC_MIN_INTERVAL.
+# Uses the same call as the GUI's "Save & Force Update". rc.dyndns.update
+# skips entries whose cached IP matches the WAN IP, even when Cloudflare
+# has another value. $2 is the reason, for the log
 force_sync() {
     stamp="/var/run/dyndns_guard.$1.resync"
     now=$(date +%s)
@@ -104,7 +104,18 @@ force_sync() {
         return
     fi
     echo "$now" > "$stamp"
-    $PHP -r 'require_once("config.inc"); require_once("gwlb.inc"); require_once("functions.inc"); require_once("services.inc"); services_dyndns_configure($argv[1]); services_dnsupdate_process($argv[1], "", true);' "$IFACE"
+    $PHP -r '
+require_once("config.inc");
+require_once("gwlb.inc");
+require_once("functions.inc");
+require_once("services.inc");
+foreach (config_get_path("dyndnses/dyndns", []) as $e) {
+    if ($e["host"] === $argv[1] && $e["domainname"] === $argv[2]) {
+        $e["force"] = true;
+        services_dyndns_configure_client($e);
+    }
+}
+' "$1" "$DOMAIN"
     logger -t "$TAG" "$2, requested a forced DynDNS update for $1.$DOMAIN"
 }
 
