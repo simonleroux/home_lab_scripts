@@ -3,7 +3,7 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
-VERSION="1.1.6"
+VERSION="1.1.7"
 
 PHP="/usr/local/bin/php"
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
@@ -117,7 +117,7 @@ show_menu() {
     echo "3) Update installed scripts (keeps your settings)"
     echo "4) Check status"
     echo "5) Uninstall"
-    echo "6) Exit"
+    echo "0) Exit"
     echo "====================================="
 }
 
@@ -229,7 +229,7 @@ update_installed() {
 
 while true; do
     show_menu
-    echo -n "Select an option [1-6]: "
+    echo -n "Select an option [0-5]: "
     read -r choice < /dev/tty
     echo ""
     case $choice in
@@ -272,7 +272,7 @@ while true; do
                 echo "Aborting."
             fi
             ;;
-        6)
+        0)
             exit 0
             ;;
         *)

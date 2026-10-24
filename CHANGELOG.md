@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.7 - 2026-10-24
+
+### Changed
+- `menu.sh` (VERSION 1.1.7): Exit is option 0 instead of 6. The prompt reads `[0-5]`. Exit still ends the menu with exit code 0.
+- `pfsense_dyndns_guard.sh` and `pfsense_wg_roam_guard.sh`: unchanged, still at their current versions.
+
 ## 1.1.6 - 2026-10-24
 
 ### Changed
