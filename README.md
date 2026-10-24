@@ -39,7 +39,9 @@ The menu can't add Shellcmd entries, so add one for each guard the first time yo
 
 ## WireGuardRoam guard
 
-`pfsense_wg_roam_guard.sh` keeps the `WireGuardRoam` tunnel (`tun_wg3`) up only on the CARP master of vhid 201. The backup firewall takes the tunnel down.
+`pfsense_wg_roam_guard.sh` keeps the WireGuard tunnels you choose up only on the CARP master of vhid 201. The backup firewall takes them down.
+
+When you install it, the menu lists every `tun_wg` interface on the firewall, with its pfSense description, and asks which ones to manage. The choice is saved to `/root/wg_roam_guard.conf`. Updates keep that choice, and the guard reads the file on every check, so you can change it by running Install again.
 
 It checks the live CARP state every 5 seconds and sets the tunnel to match. It doesn't rely on pfSense's log messages, because one CARP transition was missing from the log during testing. Changes are logged with the `wg_roam_guard` tag.
 
@@ -65,7 +67,8 @@ The guard writes `config.xml` when it changes an entry, so the change shows up i
 ps -ax -o pid,command | grep -E "wg_roam_guard|dyndns_guard" | grep -v grep
 sudo sh -c 'grep -E "wg_roam_guard|dyndns_guard" /var/log/system.log | grep -v sudo | tail -n 5'
 ifconfig | grep "carp: .* vhid"
-ifconfig tun_wg3 | head -n1
+ifconfig | grep "^tun_wg"            # tunnel names
+cat /root/wg_roam_guard.conf         # tunnels the guard manages
 ```
 
 `sudo` is needed to read `/var/log/system.log`. The `grep -v sudo` removes the lines your own `sudo` commands add, which would otherwise show up as matches.

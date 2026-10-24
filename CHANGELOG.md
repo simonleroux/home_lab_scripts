@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.0 - 2026-10-24
+
+### Changed
+- `pfsense_wg_roam_guard.sh` (VERSION 1.1.0): manages every WireGuard tunnel listed in `/root/wg_roam_guard.conf`, not only `tun_wg3`. The config is read on every check, so changes apply without a restart.
+- `menu.sh` (VERSION 1.1.0): Install WireGuardRoam guard lists the `tun_wg` interfaces, with their pfSense descriptions, and asks which to manage. Enter keeps the current choice. Status shows the tunnels being managed. Uninstall removes the choice too.
+
 ## 1.0.0 - 2026-10-24
 
 ### Added

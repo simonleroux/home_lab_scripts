@@ -3,8 +3,9 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 
+PHP="/usr/local/bin/php"
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
 TMP_DIR="/tmp/stetnet_pfsense"
 CONFIG="/cf/conf/config.xml"
@@ -14,6 +15,7 @@ WG_FILE="pfsense_wg_roam_guard.sh"
 WG_DEST="/root/wg_roam_guard.sh"
 WG_NAME="WireGuardRoam guard"
 WG_TAG="wg_roam_guard"
+WG_CONF="/root/wg_roam_guard.conf"
 
 DYN_FILE="pfsense_dyndns_guard.sh"
 DYN_DEST="/root/dyndns_guard.sh"
@@ -24,6 +26,68 @@ if [ "$(id -u)" -ne 0 ]; then
     echo "❌ Run as root."
     exit 1
 fi
+
+# Lists the WireGuard interfaces as "name|description". The description comes
+# from pfSense's config when the interface is assigned, otherwise "not assigned".
+wg_interfaces() {
+    assigned=$($PHP -r 'require_once("config.inc"); foreach (config_get_path("interfaces", []) as $if) { if (isset($if["if"]) && strncmp($if["if"], "tun_wg", 6) === 0) { echo $if["if"], "|", $if["descr"] ?? "", "\n"; } }' 2>/dev/null)
+    for name in $(ifconfig -l | tr ' ' '\n' | grep '^tun_wg'); do
+        descr=$(echo "$assigned" | sed -n "s/^$name|//p" | head -n1)
+        echo "$name|${descr:-not assigned}"
+    done
+}
+
+# Asks which WireGuard interfaces the guard should manage, and saves the choice.
+# Enter keeps the current choice. Returns 1 if nothing is selected.
+choose_wg_interfaces() {
+    mkdir -p "$TMP_DIR"
+    list="$TMP_DIR/wg_list"
+    wg_interfaces > "$list"
+    if [ ! -s "$list" ]; then
+        echo "❌ No tun_wg interfaces found on this firewall."
+        return 1
+    fi
+
+    current=$(sed -n 's/^IFACES="\(.*\)"$/\1/p' "$WG_CONF" 2>/dev/null)
+
+    echo "WireGuard interfaces on this firewall:"
+    i=0
+    while IFS='|' read -r name descr; do
+        i=$((i + 1))
+        mark=" "
+        case " $current " in
+            *" $name "*) mark="x" ;;
+        esac
+        echo "  $i) [$mark] $name  ($descr)"
+    done < "$list"
+    echo ""
+
+    echo -n "Numbers to manage, separated by spaces [current: ${current:-none}] (Enter keeps it): "
+    read -r picks < /dev/tty
+    if [ -z "$picks" ]; then
+        if [ -z "$current" ]; then
+            echo "❌ Nothing selected."
+            return 1
+        fi
+        echo "Keeping: $current"
+        return 0
+    fi
+
+    ifaces=""
+    for n in $picks; do
+        name=$(sed -n "${n}p" "$list" | cut -d'|' -f1)
+        if [ -z "$name" ]; then
+            echo "❌ Invalid choice: $n"
+            return 1
+        fi
+        ifaces="$ifaces $name"
+    done
+    ifaces=${ifaces# }
+
+    printf 'IFACES="%s"\n' "$ifaces" > "$WG_CONF"
+    chmod 600 "$WG_CONF"
+    echo "✅ The WireGuard guard will manage: $ifaces"
+}
 
 # VERSION from an installed script, or a status word
 installed_version() {
@@ -130,6 +194,10 @@ uninstall_script() {
     echo "🗑️  Removing $2..."
     stop_script "$1"
     rm -f "$1"
+    # The WireGuard guard's interface choice goes with it
+    if [ "$1" = "$WG_DEST" ]; then
+        rm -f "$WG_CONF"
+    fi
     echo "✅ $2 removed."
     if shellcmd_present "$1"; then
         echo "ℹ️  Remove the Shellcmd entry for $1 under Services > Shellcmd."
@@ -166,7 +234,7 @@ while true; do
     echo ""
     case $choice in
         1)
-            install_script "$WG_FILE" "$WG_DEST" "$WG_NAME" "$WG_TAG"
+            choose_wg_interfaces && install_script "$WG_FILE" "$WG_DEST" "$WG_NAME" "$WG_TAG"
             ;;
         2)
             install_script "$DYN_FILE" "$DYN_DEST" "$DYN_NAME" "$DYN_TAG"
@@ -177,6 +245,7 @@ while true; do
         4)
             echo "CARP state:"
             ifconfig | grep "carp: .* vhid" || echo "No CARP VIPs found."
+            echo "WireGuard tunnels managed: $(sed -n 's/^IFACES="\(.*\)"$/\1/p' "$WG_CONF" 2>/dev/null)"
             status_script "$WG_DEST" "$WG_NAME" "$WG_TAG"
             status_script "$DYN_DEST" "$DYN_NAME" "$DYN_TAG"
             ;;
