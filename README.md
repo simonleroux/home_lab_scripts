@@ -73,3 +73,4 @@ ifconfig tun_wg3 | head -n1
 ## Versions
 
 Each script has a `VERSION` line, and `CHANGELOG.md` lists what changed in each version. The menu shows the menu version and each guard's installed version. Update shows the server version too, so you can see whether an update is available. When you change a script, bump its `VERSION` and add an entry to the changelog.
+6
