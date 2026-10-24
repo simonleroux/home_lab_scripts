@@ -1,155 +1,184 @@
 #!/bin/sh
-# Home Lab DNS Updater menu. Run on the DNS server:
-#   curl -fsSL https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sudo sh
+# STETNET pfSense Scripts menu. Installs, updates, checks and removes the
+# scripts that run on the pfSense firewalls. Run on the firewall as root:
+#   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
-TMP_DIR="/tmp/home_lab_scripts"
-CONF_DIR="/etc/home_lab"
-ENV_FILE="$CONF_DIR/dns_updater.env"
+TMP_DIR="/tmp/stetnet_pfsense"
+CONFIG="/cf/conf/config.xml"
+
+# Each script: repo file, install path, name, log tag
+WG_FILE="pfsense_wg_roam_guard.sh"
+WG_DEST="/root/wg_roam_guard.sh"
+WG_NAME="WireGuardRoam guard"
+WG_TAG="wg_roam_guard"
+
+DYN_FILE="pfsense_dyndns_guard.sh"
+DYN_DEST="/root/dyndns_guard.sh"
+DYN_NAME="DynDNS guard"
+DYN_TAG="dyndns_guard"
 
 if [ "$(id -u)" -ne 0 ]; then
-    echo "❌ Run as root: curl -fsSL $REPO_URL/menu.sh | sudo sh"
+    echo "❌ Run as root."
     exit 1
 fi
-mkdir -p "$TMP_DIR"
 
 show_menu() {
     echo "====================================="
-    echo "       STETNET DNS Scripts           "
+    echo "       STETNET pfSense Scripts       "
     echo "====================================="
-    echo "1) Install Automatic DNS Update"
-    echo "2) Update installed scripts (keeps your settings)"
-    echo "3) Uninstall Automatic Cloudflare Update"
-    echo "4) Exit"
+    echo "1) Install WireGuardRoam guard"
+    echo "2) Install DynDNS guard"
+    echo "3) Update installed scripts (keeps your settings)"
+    echo "4) Check status"
+    echo "5) Uninstall"
+    echo "6) Exit"
     echo "====================================="
 }
 
-# Read a KEY="value" line from the settings file (empty if missing)
-read_setting() {
-    [ -f "$ENV_FILE" ] || return 0
-    sed -n "s/^$1=\"\(.*\)\"\$/\1/p" "$ENV_FILE" | head -n1
+# Downloads a repo file into the temp folder
+fetch_file() {
+    mkdir -p "$TMP_DIR"
+    fetch -q -o "$TMP_DIR/$1" "$REPO_URL/$1"
 }
 
-load_settings() {
-    DDNS_INTERVAL_SEC=$(read_setting DDNS_INTERVAL_SEC)
-    DDNS_VIP=$(read_setting DDNS_VIP)
-    DDNS_NETNS_RECORD=$(read_setting DDNS_NETNS_RECORD)
-    DDNS_DIRECT_RECORD=$(read_setting DDNS_DIRECT_RECORD)
-    DDNS_ZONE_NAME=$(read_setting DDNS_ZONE_NAME)
-    CF_API_TOKEN=$(read_setting CF_API_TOKEN)
+# Stops a running guard. The pattern is the install path followed by "run",
+# which is how each guard starts its background watcher.
+stop_script() {
+    pkill -f "$1 run" 2>/dev/null
+    sleep 1
 }
 
-write_settings() {
-    mkdir -p "$CONF_DIR"
-    cat > "$ENV_FILE" << EOF
-# Settings for dns_updater. Written by menu.sh, read by systemd. Kept across updates.
-DDNS_INTERVAL_SEC="$DDNS_INTERVAL_SEC"
-DDNS_VIP="$DDNS_VIP"
-DDNS_NETNS_RECORD="$DDNS_NETNS_RECORD"
-DDNS_DIRECT_RECORD="$DDNS_DIRECT_RECORD"
-DDNS_ZONE_NAME="$DDNS_ZONE_NAME"
-CF_API_TOKEN="$CF_API_TOKEN"
-EOF
-    chmod 600 "$ENV_FILE"
+# True if a Shellcmd entry for this script is in config.xml
+shellcmd_present() {
+    grep -q "$1" "$CONFIG" 2>/dev/null
 }
 
-# Shows the token as ****abcd so it isn't printed in full
-mask() {
-    if [ -n "$1" ]; then
-        echo "****${1#"${1%????}"}"
-    fi
-}
-
-# ask LABEL CURRENT [SHOW_FN]: Enter keeps CURRENT, "-" clears it.
-# Prompts go to stderr so the answer is the only thing on stdout.
-ask() {
-    shown=$2
-    [ -n "$3" ] && shown=$(mask "$2")
-    if [ -n "$shown" ]; then
-        printf "%s [%s]: " "$1" "$shown" >&2
-    else
-        printf "%s: " "$1" >&2
-    fi
-    read -r answer < /dev/tty
-    if [ "$answer" = "-" ]; then
-        echo ""
-    else
-        echo "${answer:-$2}"
-    fi
-}
-
-configure() {
-    load_settings
-    echo ""
-    echo "📝 Settings (press Enter to keep the value in brackets)"
-    echo ""
-    DDNS_INTERVAL_SEC=$(ask "⏱️  Check interval in seconds" "${DDNS_INTERVAL_SEC:-10}")
-    DDNS_VIP=$(ask "🖧  VIP shared by the DNS servers (e.g. 192.168.1.3)" "$DDNS_VIP")
-    DDNS_ZONE_NAME=$(ask "🟠 Cloudflare zone name (e.g. example.com)" "$DDNS_ZONE_NAME")
-    DDNS_NETNS_RECORD=$(ask "🔒 VPN record, updated through the ddns_ns namespace (e.g. vpn.example.com)" "$DDNS_NETNS_RECORD")
-    DDNS_DIRECT_RECORD=$(ask "🌐 Normal record, updated over the default route (e.g. www.example.com)" "$DDNS_DIRECT_RECORD")
-    CF_API_TOKEN=$(ask "🟠 Cloudflare API token (DNS:Edit)" "$CF_API_TOKEN" secret)
-
-    if [ -z "$DDNS_VIP" ] || [ -z "$DDNS_ZONE_NAME" ] || [ -z "$DDNS_NETNS_RECORD" ] || [ -z "$DDNS_DIRECT_RECORD" ] || [ -z "$CF_API_TOKEN" ]; then
-        echo "❌ VIP, zone name, both record names and API token are required. Nothing saved."
+# install_script REPO_FILE INSTALL_PATH NAME TAG
+install_script() {
+    echo "🔧 Installing $3..."
+    if ! fetch_file "$1"; then
+        echo "❌ Could not download $1"
         return 1
     fi
-    case $DDNS_INTERVAL_SEC in
-        ''|*[!0-9]*|0)
-            echo "❌ Interval must be a whole number of seconds, above 0. Nothing saved."
-            return 1
-            ;;
-    esac
-    write_settings
-    echo "💾 Settings saved to $ENV_FILE"
+
+    stop_script "$2"
+    install -m 700 -o root -g wheel "$TMP_DIR/$1" "$2" || return 1
+
+    # The script starts its own background watcher, then returns
+    sh "$2"
+    sleep 2
+
+    if pgrep -f "$2 run" > /dev/null; then
+        echo "✅ $3 is running"
+    else
+        echo "❌ $3 did not start. Check the log with: sudo sh -c 'grep $4 /var/log/system.log | tail -n 5'"
+    fi
+
+    if shellcmd_present "$2"; then
+        echo "✅ Shellcmd entry found, it will start at boot"
+    else
+        echo "ℹ️  Add a Shellcmd entry (Services > Shellcmd) with the command: /bin/sh $2"
+    fi
 }
 
-fetch_files() {
-    for f in install_dns_updater.sh dns_updater.sh ddns-status.sh uninstall_dns_updater.sh; do
-        curl -fsSL --max-time 60 "$REPO_URL/$f" -o "$TMP_DIR/$f" || { echo "❌ Could not download $f"; return 1; }
+# Prints the status of one script. $1 = install path, $2 = name, $3 = log tag
+status_script() {
+    echo ""
+    echo "--- $2"
+    if [ ! -f "$1" ]; then
+        echo "Not installed."
+        return 0
+    fi
+    if pgrep -f "$1 run" > /dev/null; then
+        echo "Running: yes"
+    else
+        echo "Running: NO"
+    fi
+    if shellcmd_present "$1"; then
+        echo "Starts at boot: yes"
+    else
+        echo "Starts at boot: NO (add a Shellcmd entry: /bin/sh $1)"
+    fi
+    echo "Last log lines:"
+    grep "$3" /var/log/system.log 2>/dev/null | grep -v sudo | tail -n 3
+}
+
+uninstall_script() {
+    echo "🗑️  Removing $2..."
+    stop_script "$1"
+    rm -f "$1"
+    echo "✅ $2 removed."
+    if shellcmd_present "$1"; then
+        echo "ℹ️  Remove the Shellcmd entry for $1 under Services > Shellcmd."
+    fi
+}
+
+# Updates every script that is already installed, keeping its settings
+update_installed() {
+    updated=0
+    for entry in "$WG_FILE|$WG_DEST|$WG_NAME|$WG_TAG" "$DYN_FILE|$DYN_DEST|$DYN_NAME|$DYN_TAG"; do
+        file=${entry%%|*}
+        rest=${entry#*|}
+        dest=${rest%%|*}
+        rest=${rest#*|}
+        name=${rest%%|*}
+        tag=${rest#*|}
+        if [ -f "$dest" ]; then
+            install_script "$file" "$dest" "$name" "$tag"
+            updated=1
+        fi
     done
-}
-
-# Downloads the latest files and applies them with the saved settings
-apply() {
-    if [ ! -f "$ENV_FILE" ]; then
-        echo "❌ No settings yet. Choose Install first."
-        return 1
-    fi
-    fetch_files || return 1
-    sh "$TMP_DIR/install_dns_updater.sh"
-}
-
-uninstall() {
-    printf "Uninstall DNS updater from this server? [y/N]: "
-    read -r confirm < /dev/tty
-    [ "$confirm" = "y" ] || { echo "Aborting."; return 0; }
-    fetch_files || return 1
-    sh "$TMP_DIR/uninstall_dns_updater.sh"
-    printf "Also delete the saved settings in %s? [y/N]: " "$ENV_FILE"
-    read -r confirm < /dev/tty
-    if [ "$confirm" = "y" ]; then
-        rm -f "$ENV_FILE"
-        echo "🗑️  Settings deleted."
+    if [ "$updated" -eq 0 ]; then
+        echo "Nothing installed yet. Choose an Install option first."
     fi
 }
 
 while true; do
     show_menu
-    echo -n "Select an option [1-4]: "
+    echo -n "Select an option [1-6]: "
     read -r choice < /dev/tty
     echo ""
     case $choice in
         1)
-            configure && apply
+            install_script "$WG_FILE" "$WG_DEST" "$WG_NAME" "$WG_TAG"
             ;;
         2)
-            apply
+            install_script "$DYN_FILE" "$DYN_DEST" "$DYN_NAME" "$DYN_TAG"
             ;;
         3)
-            uninstall
+            update_installed
             ;;
         4)
+            echo "CARP state:"
+            ifconfig | grep "carp: .* vhid" || echo "No CARP VIPs found."
+            status_script "$WG_DEST" "$WG_NAME" "$WG_TAG"
+            status_script "$DYN_DEST" "$DYN_NAME" "$DYN_TAG"
+            ;;
+        5)
+            echo "Which one to remove?"
+            echo "1) $WG_NAME"
+            echo "2) $DYN_NAME"
+            echo "3) Both"
+            echo -n "Select [1-3]: "
+            read -r which < /dev/tty
+            echo -n "Are you sure? [y/N]: "
+            read -r confirm < /dev/tty
+            if [ "$confirm" = "y" ]; then
+                case $which in
+                    1) uninstall_script "$WG_DEST" "$WG_NAME" ;;
+                    2) uninstall_script "$DYN_DEST" "$DYN_NAME" ;;
+                    3)
+                        uninstall_script "$WG_DEST" "$WG_NAME"
+                        uninstall_script "$DYN_DEST" "$DYN_NAME"
+                        ;;
+                    *) echo "Invalid option." ;;
+                esac
+            else
+                echo "Aborting."
+            fi
+            ;;
+        6)
             exit 0
             ;;
         *)
