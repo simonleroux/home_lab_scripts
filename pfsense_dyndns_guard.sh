@@ -23,6 +23,11 @@ TAG="dyndns_guard"
 PIDFILE="/var/run/dyndns_guard.pid"
 # vhid:host pairs
 MAP="1:www 201:vpn"
+# Public resolver to check what Cloudflare is serving
+DNS_RESOLVER="1.1.1.1"
+# Minimum seconds between forced syncs for one host, so a slow DNS
+# update can't cause a sync every 5 seconds
+RESYNC_MIN_INTERVAL=300
 
 # Start in the background, once only
 if [ "$1" != "run" ]; then
@@ -77,6 +82,43 @@ exit(1);
 ' "$1" "$2" "$DOMAIN"
 }
 
+# This firewall's WAN IP, as pfSense sees it
+wan_ip() {
+    $PHP -r 'require_once("interfaces.inc"); echo get_interface_ip($argv[1]);' "$IFACE"
+}
+
+# Prints the first A record for $1.$DOMAIN as seen by $DNS_RESOLVER
+dns_lookup() {
+    nslookup "$1.$DOMAIN" "$DNS_RESOLVER" 2>/dev/null | awk '/^Address/ && !/#/ {print $2; exit}'
+}
+
+# Runs rc.dyndns.update, at most once per RESYNC_MIN_INTERVAL for host $1.
+# $2 is the reason, for the log
+force_sync() {
+    stamp="/var/run/dyndns_guard.$1.resync"
+    now=$(date +%s)
+    last=$(cat "$stamp" 2>/dev/null || echo 0)
+    if [ $((now - last)) -lt "$RESYNC_MIN_INTERVAL" ]; then
+        return
+    fi
+    echo "$now" > "$stamp"
+    $PHP -f /etc/rc.dyndns.update "$IFACE"
+    logger -t "$TAG" "$2, forced a sync for $1.$DOMAIN"
+}
+
+# On the MASTER, check that public DNS shows this firewall's WAN IP.
+# If not, force a sync
+verify_dns() {
+    want=$(wan_ip)
+    if [ -z "$want" ]; then
+        return
+    fi
+    got=$(dns_lookup "$1")
+    if [ "$got" != "$want" ]; then
+        force_sync "$1" "$1.$DOMAIN resolves to '${got:-nothing}', expected $want"
+    fi
+}
+
 reconcile() {
     for pair in $MAP; do
         vhid=${pair%%:*}
@@ -91,9 +133,11 @@ reconcile() {
 
         if [ "$state" = "MASTER" ] && [ "$enabled" = "0" ]; then
             if set_entry enable "$host"; then
-                $PHP -f /etc/rc.dyndns.update "$IFACE"
-                logger -t "$TAG" "vhid $vhid is MASTER, enabled $host.$DOMAIN and forced a sync"
+                logger -t "$TAG" "vhid $vhid is MASTER, enabled $host.$DOMAIN"
+                force_sync "$host" "vhid $vhid became MASTER"
             fi
+        elif [ "$state" = "MASTER" ] && [ "$enabled" = "1" ]; then
+            verify_dns "$host"
         elif [ "$state" != "MASTER" ] && [ "$enabled" = "1" ]; then
             if set_entry disable "$host"; then
                 logger -t "$TAG" "vhid $vhid is $state, disabled $host.$DOMAIN"
