@@ -5,6 +5,7 @@ Every change to the scripts is recorded here. Each script has a `VERSION` line; 
 ## 1.1.1 - 2026-10-24
 
 ### Changed
+- `menu.sh` (VERSION 1.1.1): version bumped with this release. No menu behaviour change.
 - `pfsense_dyndns_guard.sh` (VERSION 1.1.1): on the MASTER, checks every 5 seconds that public DNS (`nslookup` against 1.1.1.1) shows this firewall's WAN IP. If it doesn't, it forces a DynDNS sync and logs what DNS returned. Forced syncs are limited to one per host every 300 seconds. The enable-and-sync path uses the same limit.
 
 ## 1.1.0 - 2026-10-24
