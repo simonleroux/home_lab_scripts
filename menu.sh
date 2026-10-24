@@ -3,6 +3,8 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
+VERSION="1.0.0"
+
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
 TMP_DIR="/tmp/stetnet_pfsense"
 CONFIG="/cf/conf/config.xml"
@@ -23,9 +25,28 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# VERSION from an installed script, or a status word
+installed_version() {
+    if [ -f "$1" ]; then
+        v=$(sed -n 's/^VERSION="\(.*\)"$/\1/p' "$1" | head -n1)
+        echo "${v:-unknown (older install)}"
+    else
+        echo "not installed"
+    fi
+}
+
+# VERSION as published on GitHub for one of the repo's files
+server_version() {
+    v=$(fetch -qo - "$REPO_URL/$1" 2>/dev/null | sed -n 's/^VERSION="\(.*\)"$/\1/p' | head -n1)
+    echo "${v:-unavailable}"
+}
+
 show_menu() {
     echo "====================================="
     echo "       STETNET pfSense Scripts       "
+    echo "       Menu version: $VERSION        "
+    echo "       WireGuard guard: $(installed_version "$WG_DEST")"
+    echo "       DynDNS guard:    $(installed_version "$DYN_DEST")"
     echo "====================================="
     echo "1) Install WireGuardRoam guard"
     echo "2) Install DynDNS guard"
@@ -56,7 +77,7 @@ shellcmd_present() {
 
 # install_script REPO_FILE INSTALL_PATH NAME TAG
 install_script() {
-    echo "🔧 Installing $3..."
+    echo "🔧 Installing $3 version $(server_version "$1")..."
     if ! fetch_file "$1"; then
         echo "❌ Could not download $1"
         return 1
@@ -90,6 +111,7 @@ status_script() {
         echo "Not installed."
         return 0
     fi
+    echo "Version: $(installed_version "$1")"
     if pgrep -f "$1 run" > /dev/null; then
         echo "Running: yes"
     else
@@ -116,6 +138,9 @@ uninstall_script() {
 
 # Updates every script that is already installed, keeping its settings
 update_installed() {
+    echo "Menu: installed $VERSION, server $(server_version menu.sh)"
+    echo "(Run the curl command again to get a newer menu.)"
+    echo ""
     updated=0
     for entry in "$WG_FILE|$WG_DEST|$WG_NAME|$WG_TAG" "$DYN_FILE|$DYN_DEST|$DYN_NAME|$DYN_TAG"; do
         file=${entry%%|*}

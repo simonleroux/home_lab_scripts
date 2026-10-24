@@ -10,6 +10,8 @@
 # The script backgrounds itself, so Shellcmd returns straight away.
 # Install to /root/wg_roam_guard.sh (chmod 700). See README.md.
 
+VERSION="1.0.0"
+
 IF="tun_wg3"
 VHID="201"
 TAG="wg_roam_guard"

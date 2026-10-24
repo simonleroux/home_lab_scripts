@@ -14,6 +14,8 @@
 # Start at boot with Shellcmd: /bin/sh /root/dyndns_guard.sh
 # Install to /root/dyndns_guard.sh (chmod 700). See README.md.
 
+VERSION="1.0.0"
+
 PHP="/usr/local/bin/php"
 DOMAIN="simonleroux.ca"
 IFACE="wan"
