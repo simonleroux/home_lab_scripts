@@ -8,13 +8,13 @@
 #
 # Each DynDNS entry exists on both firewalls. pfSense handles the Cloudflare
 # update itself. This script only toggles the entry's enable flag in config.xml
-# and runs /etc/rc.dyndns.update for the WAN.
+# and forces a DynDNS update for the WAN when DNS doesn't match.
 #
 # Checks the CARP state every 5 seconds, so no cron job is needed.
 # Start at boot with Shellcmd: /bin/sh /root/dyndns_guard.sh
 # Install to /root/dyndns_guard.sh (chmod 700). See README.md.
 
-VERSION="1.1.4"
+VERSION="1.1.5"
 
 PHP="/usr/local/bin/php"
 DOMAIN="simonleroux.ca"
@@ -92,7 +92,9 @@ dns_lookup() {
     nslookup "$1.$DOMAIN" "$DNS_RESOLVER" 2>/dev/null | awk '/^Address/ && !/#/ {print $2; exit}'
 }
 
-# Runs rc.dyndns.update, at most once per RESYNC_MIN_INTERVAL for host $1.
+# Forces a DynDNS update on the WAN, at most once per RESYNC_MIN_INTERVAL for host $1.
+# Calls the forced update directly. rc.dyndns.update skips entries whose
+# cached IP already matches the WAN IP, even when Cloudflare has another value.
 # $2 is the reason, for the log
 force_sync() {
     stamp="/var/run/dyndns_guard.$1.resync"
@@ -102,8 +104,8 @@ force_sync() {
         return
     fi
     echo "$now" > "$stamp"
-    $PHP -f /etc/rc.dyndns.update "$IFACE"
-    logger -t "$TAG" "$2, requested a DynDNS sync for $1.$DOMAIN"
+    $PHP -r 'require_once("config.inc"); require_once("gwlb.inc"); require_once("functions.inc"); require_once("services.inc"); services_dyndns_configure($argv[1]); services_dnsupdate_process($argv[1], "", true);' "$IFACE"
+    logger -t "$TAG" "$2, requested a forced DynDNS update for $1.$DOMAIN"
 }
 
 # On the MASTER, check that DNS shows this firewall's WAN IP.

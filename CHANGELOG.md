@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.5 - 2026-10-24
+
+### Changed
+- `pfsense_dyndns_guard.sh` (VERSION 1.1.5): a mismatch now triggers a forced DynDNS update (`services_dnsupdate_process` with `forced` set) instead of `rc.dyndns.update`. `rc.dyndns.update` skips entries whose cached IP matches the WAN IP, even when Cloudflare has a different value, which is what left `vpn` stale after the failover. The forced update covers all WAN DynDNS entries, so a mismatch on either host updates both.
+- `menu.sh` (VERSION 1.1.5): version bumped with this release. No menu behaviour change.
+
 ## 1.1.4 - 2026-10-24
 
 ### Changed
