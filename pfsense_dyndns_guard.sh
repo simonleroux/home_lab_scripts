@@ -14,7 +14,7 @@
 # Start at boot with Shellcmd: /bin/sh /root/dyndns_guard.sh
 # Install to /root/dyndns_guard.sh (chmod 700). See README.md.
 
-VERSION="1.1.3"
+VERSION="1.1.4"
 
 PHP="/usr/local/bin/php"
 DOMAIN="simonleroux.ca"
@@ -103,19 +103,24 @@ force_sync() {
     fi
     echo "$now" > "$stamp"
     $PHP -f /etc/rc.dyndns.update "$IFACE"
-    logger -t "$TAG" "$2, forced a sync for $1.$DOMAIN"
+    logger -t "$TAG" "$2, requested a DynDNS sync for $1.$DOMAIN"
 }
 
-# On the MASTER, check that public DNS shows this firewall's WAN IP.
-# If not, force a sync
+# On the MASTER, check that DNS shows this firewall's WAN IP.
+# If not, request a sync. Logs when a mismatch clears
 verify_dns() {
     want=$(wan_ip)
     if [ -z "$want" ]; then
         return
     fi
     got=$(dns_lookup "$1")
+    flag="/var/run/dyndns_guard.$1.mismatch"
     if [ "$got" != "$want" ]; then
+        touch "$flag"
         force_sync "$1" "$1.$DOMAIN resolves to '${got:-nothing}', expected $want"
+    elif [ -f "$flag" ]; then
+        rm -f "$flag"
+        logger -t "$TAG" "$1.$DOMAIN now resolves to $want, as expected"
     fi
 }
 

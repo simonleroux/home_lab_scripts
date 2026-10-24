@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.4 - 2026-10-24
+
+### Changed
+- `pfsense_dyndns_guard.sh` (VERSION 1.1.4): the log now says "requested a DynDNS sync" instead of "forced a sync", because the guard can't see whether pfSense sent an update. When a mismatch is fixed, the guard logs that the record now resolves to the expected IP.
+- `menu.sh` (VERSION 1.1.4): version bumped with this release. No menu behaviour change.
+
 ## 1.1.3 - 2026-10-24
 
 ### Changed
