@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.9 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.9): menu option 1 is now "Install WireGuard guard" instead of "Install WireGuardRoam guard". The option does the same thing.
+- `pfsense_dyndns_guard.sh` and `pfsense_wg_roam_guard.sh`: unchanged, still at their current versions.
+
 ## 1.1.8 - 2026-10-24
 
 ### Changed

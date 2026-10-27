@@ -3,7 +3,7 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
-VERSION="1.1.8"
+VERSION="1.1.9"
 
 PHP="/usr/local/bin/php"
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
@@ -133,7 +133,7 @@ show_menu() {
     echo "       WireGuard guard: $wg_installed ($(version_status "$wg_installed" "$wg_server"))"
     echo "       DynDNS guard:    $dyn_installed ($(version_status "$dyn_installed" "$dyn_server"))"
     echo "====================================="
-    echo "1) Install WireGuardRoam guard"
+    echo "1) Install WireGuard guard"
     echo "2) Install DynDNS guard"
     echo "3) Update installed scripts (keeps your settings)"
     echo "4) Check status"
