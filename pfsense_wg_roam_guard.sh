@@ -11,12 +11,19 @@
 # The script backgrounds itself, so Shellcmd returns straight away.
 # Install to /root/wg_roam_guard.sh (chmod 700). See README.md.
 
-VERSION="1.1.0"
+VERSION="1.1.2"
 
 VHID="201"
 TAG="wg_roam_guard"
 CONF="/root/wg_roam_guard.conf"
 PIDFILE="/var/run/wg_roam_guard.pid"
+# Seconds between CARP checks. The new master brings its tunnel up within this time
+CHECK_INTERVAL=10
+# Seconds the backup keeps its tunnel up after losing the VIP. Clients whose
+# cached DNS still points here (TTL 60) can reach the LAN until DNS moves
+BACKUP_GRACE=90
+# Epoch time the backup first saw it no longer held the VIP. Empty while master
+backup_since=""
 
 # Start in the background, once only
 if [ "$1" != "run" ]; then
@@ -45,6 +52,14 @@ reconcile() {
         return 1
     fi
 
+    # Start the grace period when this firewall first stops being master
+    if [ "$state" = "MASTER" ]; then
+        backup_since=""
+    elif [ -z "$backup_since" ]; then
+        backup_since=$(date +%s)
+        logger -t "$TAG" "vhid $VHID is $state, keeping tunnels up for ${BACKUP_GRACE}s"
+    fi
+
     for IF in $ifaces; do
         # The flags are on the first line of ifconfig output, e.g. flags=10080c1<UP,RUNNING,...>
         if ifconfig "$IF" | head -n1 | grep -qE "[<,]UP[,>]"; then
@@ -55,8 +70,8 @@ reconcile() {
 
         if [ "$state" = "MASTER" ] && [ "$up" -eq 0 ]; then
             ifconfig "$IF" up && logger -t "$TAG" "vhid $VHID is MASTER, brought $IF up"
-        elif [ "$state" != "MASTER" ] && [ "$up" -eq 1 ]; then
-            ifconfig "$IF" down && logger -t "$TAG" "vhid $VHID is $state, brought $IF down"
+        elif [ "$state" != "MASTER" ] && [ "$up" -eq 1 ] && [ $(( $(date +%s) - backup_since )) -ge "$BACKUP_GRACE" ]; then
+            ifconfig "$IF" down && logger -t "$TAG" "vhid $VHID is $state, brought $IF down after ${BACKUP_GRACE}s"
         fi
     done
 }
@@ -67,5 +82,5 @@ reconcile
 # logging a CARP message for every transition: one was missing during a failover test.
 while true; do
     reconcile
-    sleep 5
+    sleep "$CHECK_INTERVAL"
 done

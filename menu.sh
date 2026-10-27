@@ -3,7 +3,7 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
-VERSION="1.1.9"
+VERSION="1.1.11"
 
 PHP="/usr/local/bin/php"
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"

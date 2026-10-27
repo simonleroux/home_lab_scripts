@@ -2,6 +2,18 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.11 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.11): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_roam_guard.sh` (VERSION 1.1.2): the CARP check runs every 10 seconds, so the new master brings its tunnel up within 10 seconds of taking the VIP. The backup keeps its tunnel up for 90 seconds after losing the VIP, so clients whose cached DNS still points at it keep working until the DNS record moves. Both firewalls can have the tunnel up at the same time during that window.
+
+## 1.1.10 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.10): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_roam_guard.sh` (VERSION 1.1.1): the CARP check runs every 2 seconds instead of 5, so the new master brings its tunnel up sooner. The backup keeps its tunnel up for 90 seconds after losing the VIP, so clients whose cached DNS still points at it keep working until the DNS record moves. Both firewalls can have the tunnel up at the same time during that window.
+
 ## 1.1.9 - 2026-10-27
 
 ### Changed
