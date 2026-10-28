@@ -3,7 +3,7 @@
 # scripts that run on the pfSense firewalls. Run on the firewall as root:
 #   fetch -qo - https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main/menu.sh | sh
 
-VERSION="1.1.11"
+VERSION="1.1.15"
 
 PHP="/usr/local/bin/php"
 REPO_URL="https://raw.githubusercontent.com/simonleroux/home_lab_scripts/refs/heads/main"
@@ -11,7 +11,7 @@ TMP_DIR="/tmp/stetnet_pfsense"
 CONFIG="/cf/conf/config.xml"
 
 # Each script: repo file, install path, name, log tag
-WG_FILE="pfsense_wg_roam_guard.sh"
+WG_FILE="pfsense_wg_guard.sh"
 WG_DEST="/root/wg_roam_guard.sh"
 WG_NAME="WireGuardRoam guard"
 WG_TAG="wg_roam_guard"

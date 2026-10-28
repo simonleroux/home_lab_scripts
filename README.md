@@ -39,7 +39,7 @@ The menu can't add Shellcmd entries, so add one for each guard the first time yo
 
 ## WireGuardRoam guard
 
-`pfsense_wg_roam_guard.sh` keeps the WireGuard tunnels you choose up only on the CARP master of vhid 201. The backup firewall takes them down.
+`pfsense_wg_guard.sh` keeps the WireGuard tunnels you choose up only on the CARP master of vhid 201. The backup firewall takes them down.
 
 When you install it, the menu lists every `tun_wg` interface on the firewall, with its pfSense description, and asks which ones to manage. The choice is saved to `/root/wg_roam_guard.conf`. Updates keep that choice, and the guard reads the file on every check, so you can change it by running Install again.
 

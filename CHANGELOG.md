@@ -2,6 +2,32 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.15 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.15): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_guard.sh` (VERSION 1.1.6): the failover advisory's destination is now found per tunnel. The guard reads each managed tunnel's address and netmask, then sends to the pfSense gateway in the same subnet (on the current setup: 192.168.254.6 for tun_wg1, 192.168.254.14 for tun_wg2, 192.168.254.22 for tun_wg3). The hardcoded 192.168.11.1, 12.1 and 13.1 addresses are removed. The UniFi listeners must listen on their tunnel addresses, not their LAN addresses. Port 50000 is unchanged.
+
+## 1.1.14 - 2026-10-27
+
+### Changed
+- `pfsense_wg_roam_guard.sh` renamed to `pfsense_wg_guard.sh`, since the guard manages any chosen tunnel. The firewall install path (`/root/wg_roam_guard.sh`), the config file and the log tag are unchanged, so existing installs and Shellcmd entries keep working.
+- `pfsense_wg_guard.sh` (VERSION 1.1.5): same behaviour as 1.1.4, under the new file name.
+- `menu.sh` (VERSION 1.1.14): fetches `pfsense_wg_guard.sh` from the repo. No other menu change.
+- README: refers to the new file name.
+
+## 1.1.13 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.13): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_roam_guard.sh` (VERSION 1.1.4): when DNS for `vpn.simonleroux.ca` shows another firewall's IP on two checks in a row, the backup sends a UDP advisory to each UniFi (192.168.11.1, 192.168.12.1, 192.168.13.1 on tun_wg1, tun_wg2, tun_wg3). It goes out over that tunnel, three times, to port 50000. Payload: `failover <tunnel public key>`. The UniFi listener starts its 30-second fast window on receipt, then falls back to its normal check. The tunnel drop still waits 15 seconds after the advisory.
+
+## 1.1.12 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.12): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_roam_guard.sh` (VERSION 1.1.3): replaces the fixed 90-second backup grace with a DNS check. The CARP check runs every 2 seconds. While the backup holds the VIP's tunnel, it keeps it up as long as DNS for `vpn.simonleroux.ca` points at its own WAN IP. Once DNS shows another IP, it drops the tunnels 15 seconds later, which leaves time for the remote side's check to reconnect. A 180-second limit drops them even if DNS never moves. This supersedes the 90-second grace from 1.1.1 and the 10-second interval from 1.1.2.
+
 ## 1.1.11 - 2026-10-27
 
 ### Changed
