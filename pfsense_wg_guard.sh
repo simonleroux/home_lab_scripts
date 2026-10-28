@@ -11,7 +11,7 @@
 # The script backgrounds itself, so Shellcmd returns straight away.
 # Install to /root/wg_roam_guard.sh (chmod 700). See README.md.
 
-VERSION="1.1.8"
+VERSION="1.1.9"
 
 VHID="201"
 TAG="wg_roam_guard"
@@ -24,6 +24,9 @@ PHP="/usr/local/bin/php"
 DOMAIN="simonleroux.ca"
 HOST="vpn"
 IFACE="wan"
+# Public resolver used only to find the zone's nameserver. The firewall's own
+# resolver can fail, so it isn't used here
+BOOTSTRAP_RESOLVER="1.1.1.1"
 # The backup drops its tunnels this many seconds after it sees DNS move to the
 # new master. The advisory goes out at that moment, so the remote side reconnects
 # within this window
@@ -45,10 +48,15 @@ wan_ip() {
 }
 
 # Address of the zone's Cloudflare nameserver. Asking it directly skips any
-# caching resolver, so the answer is the same here as on the UniFi side
+# caching resolver, so the answer is the same here as on the UniFi side. The
+# nameserver's own name is looked up through BOOTSTRAP_RESOLVER, because the
+# firewall's local resolver can fail
 auth_ns_ip() {
-    ns=$(nslookup -type=ns "$DOMAIN" 2>/dev/null | awk '/nameserver/ {print $NF; exit}')
-    nslookup "$ns" 2>/dev/null | awk '/^Address/ && !/#/ {print $2; exit}'
+    ns=$(nslookup -type=ns "$DOMAIN" "$BOOTSTRAP_RESOLVER" 2>/dev/null | awk '/nameserver/ {print $NF; exit}')
+    if [ -z "$ns" ]; then
+        return
+    fi
+    nslookup "$ns" "$BOOTSTRAP_RESOLVER" 2>/dev/null | awk '/^Address/ && !/#/ {print $2; exit}'
 }
 
 # Prints the first A record for $HOST.$DOMAIN as served by the zone's nameserver

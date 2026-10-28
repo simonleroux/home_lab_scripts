@@ -2,6 +2,12 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.18 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.18): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_guard.sh` (VERSION 1.1.9): finding the zone's Cloudflare nameserver now goes through 1.1.1.1, not the firewall's own resolver. On pfSense-101 the local resolver returned SERVFAIL for the domain, so the guard never saw DNS change and the backup only dropped its tunnel at the 240-second safety limit. The record itself is still read from Cloudflare's nameserver.
+
 ## 1.1.17 - 2026-10-27
 
 ### Changed
