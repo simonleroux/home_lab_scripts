@@ -2,6 +2,18 @@
 
 Every change to the scripts is recorded here. Each script has a `VERSION` line; bump it when you change that file and note the new version in the entry below.
 
+## 1.1.17 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.17): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_guard.sh` (VERSION 1.1.8): DNS is checked against the zone's own Cloudflare nameserver, not 1.1.1.1, so the backup sees the new IP as soon as it's live, without a resolver cache delay. When the new IP is seen, the backup sends the advisory at once and drops its tunnels 10 seconds later. The 90-second wait from 1.1.7 is removed, and so is the two-checks-in-a-row rule.
+
+## 1.1.16 - 2026-10-27
+
+### Changed
+- `menu.sh` (VERSION 1.1.16): version bumped with this release. No menu behaviour change.
+- `pfsense_wg_guard.sh` (VERSION 1.1.7): the backup keeps its tunnels up for 90 seconds after DNS moves to the new master, instead of 15. Traffic keeps flowing through the old firewall until the remote side reconnects, so the outage is only the switch-over. The safety limit is now 240 seconds. The failover can take about a minute, but the outage should be a few seconds.
+
 ## 1.1.15 - 2026-10-27
 
 ### Changed
